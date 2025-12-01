@@ -1,0 +1,14 @@
+int x = 10;
+double y;
+
+class A {
+    public int z = 5;
+
+    private void foo(int a, int b) {
+        x = a + b;
+    }
+}
+
+void main() {
+    x = x + 1;
+}
