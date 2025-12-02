@@ -22,48 +22,55 @@ class Declaration:
 
 @dataclass
 class VarDecl(Declaration):
-    """Declaración de variable: tipo id [= expr] [, id [= expr]]*"""
+    """DECLVAR: TIPO LISTAID punto_coma"""
     type_token: Token  # Token del tipo (int, float, etc.)
-    declarations: List['VarDeclItem']  # Lista de (id_token, init_expr)
+    declarators: List['VarDeclarator']  # Lista de (id_token, init_expr)
 
     def __repr__(self):
-        return f"VarDecl({self.type_token.lexeme}, {len(self.declarations)} items)"
+        return f"VarDecl({self.type_token.lexeme}, {len(self.declarators)} declarators)"
 
 
 @dataclass
-class VarDeclItem:
-    """Un item en una declaración de variables: id [= expr]"""
-    id_token: Token  # Token del identificador
+class VarDeclarator:
+    """Un item en LISTAID: id INICIALIZACION"""
+    name_token: Token  # Token del identificador
     initializer: Optional['Expression']  # None si no hay inicializador
     is_array: bool = False  # True si es un arreglo
 
 
 @dataclass
+class VarDeclSinPunto(Declaration):
+    """DECLVARSINPUNTO: TIPO LISTAID (sin punto y coma, para for init)"""
+    type_token: Token
+    declarators: List['VarDeclarator']
+
+
+@dataclass
 class FuncDecl(Declaration):
-    """Declaración de función: tipo id ( [parametros] ) bloque"""
+    """DECLFUNC: TIPO id paren_izq PARAMETROS paren_der BLOQUE"""
     return_type: Token  # Token del tipo de retorno
     name_token: Token  # Token del nombre de la función
-    parameters: List['Parameter']  # Lista de parámetros
+    parameters: List['Param']  # Lista de parámetros
     body: 'BlockStmt'  # Cuerpo de la función
 
 
 @dataclass
-class Parameter:
-    """Un parámetro de función: tipo id"""
+class Param:
+    """PARAM: TIPO id"""
     type_token: Token
     name_token: Token
 
 
 @dataclass
 class ClassDecl(Declaration):
-    """Declaración de clase: class id { [miembros] }"""
+    """DECLCLASE: class id llave_izq LISTAMIEMBROS llave_der"""
     name_token: Token
     members: List['ClassMember']  # Métodos y variables de clase
 
 
 @dataclass
 class ClassMember:
-    """Un miembro de clase (variable o método)"""
+    """MIEMBRO: MODIFICADORACCESO DECLVAR | MODIFICADORACCESO DECLFUNC"""
     access_modifier: Optional[Token]  # PUBLIC, PRIVATE, o None (default private)
     declaration: 'Declaration'  # VarDecl o FuncDecl
 
@@ -78,7 +85,7 @@ class Statement:
 
 @dataclass
 class ExprStmt(Statement):
-    """Sentencia de expresión: expr;"""
+    """SENTENCIAEXPR: EXPR punto_coma | punto_coma"""
     expression: Optional['Expression']  # None si es solo `;`
 
     def __repr__(self):
@@ -86,17 +93,8 @@ class ExprStmt(Statement):
 
 
 @dataclass
-class VarDeclStmt(Statement):
-    """Sentencia de declaración de variable dentro de bloque"""
-    var_decl: 'VarDecl'
-
-    def __repr__(self):
-        return f"VarDeclStmt({self.var_decl})"
-
-
-@dataclass
 class BlockStmt(Statement):
-    """Bloque de sentencias: { sentencias }"""
+    """BLOQUE: llave_izq LISTASENTENCIAS llave_der"""
     statements: List[Statement]
 
     def __repr__(self):
@@ -105,7 +103,7 @@ class BlockStmt(Statement):
 
 @dataclass
 class IfStmt(Statement):
-    """Sentencia if/else: if (expr) sentencia [else sentencia]"""
+    """SENTENCIASEL: if paren_izq EXPR paren_der SENTENCIA [else SENTENCIA]"""
     condition: 'Expression'
     then_stmt: Statement
     else_stmt: Optional[Statement]
@@ -116,7 +114,7 @@ class IfStmt(Statement):
 
 @dataclass
 class WhileStmt(Statement):
-    """Sentencia while: while (expr) sentencia"""
+    """SENTENCIAITER: while paren_izq EXPR paren_der SENTENCIA"""
     condition: 'Expression'
     body: Statement
 
@@ -125,11 +123,20 @@ class WhileStmt(Statement):
 
 
 @dataclass
+class VarDeclStmt(Statement):
+    """Variable declaration within statements (int x = 0;)"""
+    var_decl: 'VarDecl'
+
+    def __repr__(self):
+        return f"VarDeclStmt({self.var_decl})"
+
+
+@dataclass
 class ForStmt(Statement):
-    """Sentencia for: for (init; cond; update) sentencia"""
-    init: Optional['Expression']  # O None, o DeclVar, o Expr
-    condition: Optional['Expression']
-    update: Optional['Expression']
+    """SENTENCIAITER: for paren_izq FORINIT punto_coma EXPR punto_coma FORUPDATE paren_der SENTENCIA"""
+    init: Optional['Declaration | Expression']  # DECLVARSINPUNTO o EXPR o ε
+    condition: Optional['Expression']  # EXPR o ε
+    update: Optional['Expression']  # FORUPDATE (EXPR o ε)
     body: Statement
 
     def __repr__(self):
@@ -138,7 +145,7 @@ class ForStmt(Statement):
 
 @dataclass
 class SwitchStmt(Statement):
-    """Sentencia switch: switch (expr) { casos }"""
+    """SENTENCIASWITCH: switch paren_izq EXPR paren_der llave_izq LISTACASOS llave_der"""
     expr: 'Expression'
     cases: List['CaseStmt']
 
@@ -148,18 +155,17 @@ class SwitchStmt(Statement):
 
 @dataclass
 class CaseStmt:
-    """Un case dentro de switch: case expr: sentencias; o default: sentencias;"""
+    """CASO: case EXPR punto_coma LISTASENTENCIAS | default punto_coma LISTASENTENCIAS"""
     case_expr: Optional['Expression']  # None si es default
     statements: List[Statement]
-    is_default: bool = False
 
     def __repr__(self):
-        return f"CaseStmt(default={self.is_default})"
+        return f"CaseStmt(default={self.case_expr is None})"
 
 
 @dataclass
 class ReturnStmt(Statement):
-    """Sentencia return: return [expr];"""
+    """SENTENCIARET: return EXPR punto_coma | return punto_coma"""
     return_expr: Optional['Expression']
 
     def __repr__(self):
@@ -176,20 +182,63 @@ class Expression:
 
 @dataclass
 class AssignExpr(Expression):
-    """Expresión de asignación: id = expr O id[expr] = expr"""
-    target: Expression  # Puede ser IdentifierExpr o IndexExpr
+    """EXPRASIGNACION': op_asig EXPRASIGNACION (derecha-asociativa)"""
+    target: Expression  # IdentifierExpr o IndexExpr
     value: Expression
 
     def __repr__(self):
-        target_repr = f"{self.target}" if isinstance(self.target, IdentifierExpr) else f"[{self.target}]"
-        return f"AssignExpr({target_repr} = ...)"
+        return f"AssignExpr({self.target} = ...)"
+
+
+@dataclass
+class LogicalOrExpr(Expression):
+    """EXPRLOGICA': op_or EXPRAND EXPRLOGICA'"""
+    left: Expression
+    operator: Token  # OP_OR
+    right: Expression
+
+    def __repr__(self):
+        return f"LogicalOrExpr({self.operator.type})"
+
+
+@dataclass
+class LogicalAndExpr(Expression):
+    """EXPRAND': op_and EXPRIGUALDAD EXPRAND'"""
+    left: Expression
+    operator: Token  # OP_AND
+    right: Expression
+
+    def __repr__(self):
+        return f"LogicalAndExpr({self.operator.type})"
+
+
+@dataclass
+class EqualityExpr(Expression):
+    """EXPRIGUALDAD': (op_igual | op_distinto) EXPRRELACIONAL"""
+    left: Expression
+    operator: Token  # OP_IGUAL o OP_DISTINTO
+    right: Expression
+
+    def __repr__(self):
+        return f"EqualityExpr({self.operator.type})"
+
+
+@dataclass
+class RelationalExpr(Expression):
+    """EXPRRELACIONAL': (op_menor | op_menor_ig | op_mayor | op_mayor_ig) EXPRADITIVA"""
+    left: Expression
+    operator: Token  # OP_MENOR, OP_MENOR_IG, OP_MAYOR, OP_MAYOR_IG
+    right: Expression
+
+    def __repr__(self):
+        return f"RelationalExpr({self.operator.type})"
 
 
 @dataclass
 class BinaryExpr(Expression):
-    """Expresión binaria: left op right"""
+    """Expresión binaria: +, -, *, /, %"""
     left: Expression
-    operator: Token  # Token del operador
+    operator: Token  # Operador: OP_SUMA, OP_RESTA, OP_MULT, OP_DIV, OP_MOD
     right: Expression
 
     def __repr__(self):
@@ -198,18 +247,28 @@ class BinaryExpr(Expression):
 
 @dataclass
 class UnaryExpr(Expression):
-    """Expresión unaria: op expr (!, -, ++, --)"""
-    operator: Token  # Token del operador
+    """FACTOR: op_not, op_resta (prefijo); ++expr, --expr (prefijo)"""
+    operator: Token  # OP_NOT, OP_RESTA, OP_INC, OP_DEC
     operand: Expression
-    is_postfix: bool = False  # True si es ++ o -- postfijo
+    is_prefix: bool = True  # True para prefijo
 
     def __repr__(self):
-        return f"UnaryExpr({self.operator.type}, postfix={self.is_postfix})"
+        return f"UnaryExpr({self.operator.type}, prefix={self.is_prefix})"
+
+
+@dataclass
+class PostfixExpr(Expression):
+    """EXPRPOSTFIJA': expr++ o expr--"""
+    operand: Expression
+    operator: Token  # OP_INC o OP_DEC
+
+    def __repr__(self):
+        return f"PostfixExpr({self.operator.type})"
 
 
 @dataclass
 class CallExpr(Expression):
-    """Llamada a función: id ( [args] )"""
+    """LLAMADAFUNC: id paren_izq ARGSOPTS paren_der"""
     func_token: Token  # Token del nombre de la función
     arguments: List[Expression]
 
@@ -219,7 +278,7 @@ class CallExpr(Expression):
 
 @dataclass
 class IndexExpr(Expression):
-    """Acceso a arreglo: id [ expr ]"""
+    """ACCESOARREGLO: id corchete_izq EXPR corchete_der"""
     array_token: Token  # Token del identificador del arreglo
     index: Expression
 
@@ -229,7 +288,7 @@ class IndexExpr(Expression):
 
 @dataclass
 class LiteralExpr(Expression):
-    """Literal: número, string, char, true, false"""
+    """LITERAL: num_int, num_float, num_exp, string, char, true, false"""
     value_token: Token  # Token que contiene el literal
 
     def __repr__(self):
@@ -238,7 +297,7 @@ class LiteralExpr(Expression):
 
 @dataclass
 class IdentifierExpr(Expression):
-    """Identificador (variable, función, etc.)"""
+    """EXPRPRIMARIA: id"""
     id_token: Token
 
     def __repr__(self):
@@ -247,7 +306,7 @@ class IdentifierExpr(Expression):
 
 @dataclass
 class GroupingExpr(Expression):
-    """Expresión agrupada: ( expr )"""
+    """EXPRPRIMARIA: paren_izq EXPR paren_der"""
     expression: Expression
 
     def __repr__(self):

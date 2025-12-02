@@ -247,7 +247,7 @@ class SemanticAnalyzer:
     def visit_VarDecl(self, node: VarDecl):
         """Analiza declaración de variable"""
         var_type = self.token_to_type(node.type_token)
-        print(f"[DEBUG-SEM] visit_VarDecl: {node.type_token.lexeme} con {len(node.declarations)} items")
+        print(f"[DEBUG-SEM] visit_VarDecl: {node.type_token.lexeme} con {len(node.declarators)} items")
 
         # VOID solo permitido en funciones
         if var_type == TypeKind.VOID:
@@ -257,17 +257,17 @@ class SemanticAnalyzer:
             )
             return
 
-        for item in node.declarations:
-            var_name = item.id_token.lexeme
+        for declarator in node.declarators:
+            var_name = declarator.name_token.lexeme
 
             sym = Symbol(
                 name=var_name,
                 type_=var_type,
                 kind="variable",
-                token=item.id_token,
+                token=declarator.name_token,
                 scope_level=self.current_scope.level,
-                is_initialized=item.initializer is not None,
-                is_array=item.is_array
+                is_initialized=declarator.initializer is not None,
+                is_array=declarator.is_array
             )
 
             try:
@@ -277,11 +277,11 @@ class SemanticAnalyzer:
                 continue
 
             # Verificar inicializador si existe
-            if item.initializer:
-                init_type = self.visit_Expression(item.initializer)
+            if declarator.initializer:
+                init_type = self.visit_Expression(declarator.initializer)
                 if not self.type_system.is_assignable(var_type, init_type):
                     self.errors.append(
-                        f"[L{item.id_token.line},C{item.id_token.column}] "
+                        f"[L{declarator.name_token.line},C{declarator.name_token.column}] "
                         f"Cannot assign {init_type} to {var_type}"
                     )
 
@@ -346,18 +346,18 @@ class SemanticAnalyzer:
                 # Colectar miembros primero
                 if isinstance(member.declaration, VarDecl):
                     # Registrar variable de miembro
-                    for item in member.declaration.declarations:
+                    for item in member.declaration.declarators:
                         var_sym = Symbol(
-                            name=item.id_token.lexeme,
+                            name=item.name_token.lexeme,
                             type_=self.token_to_type(member.declaration.type_token),
                             kind="variable",
-                            token=item.id_token,
+                            token=item.name_token,
                             scope_level=self.current_scope.level
                         )
                         try:
-                            self.current_scope.define(item.id_token.lexeme, var_sym)
+                            self.current_scope.define(item.name_token.lexeme, var_sym)
                             if class_sym and class_sym.members is not None:
-                                class_sym.members[item.id_token.lexeme] = var_sym
+                                class_sym.members[item.name_token.lexeme] = var_sym
                         except SemanticError as e:
                             self.errors.append(str(e))
 
@@ -416,11 +416,6 @@ class SemanticAnalyzer:
             print(f"[DEBUG-SEM]   Expresión: {type(node.expression).__name__}")
             self.visit_Expression(node.expression)
 
-    def visit_VarDeclStmt(self, node: VarDeclStmt):
-        """Analiza sentencia de declaración de variable"""
-        print(f"[DEBUG-SEM] visit_VarDeclStmt")
-        self.visit_VarDecl(node.var_decl)
-
     def visit_BlockStmt(self, node: BlockStmt):
         """Analiza bloque de sentencias"""
         print(f"[DEBUG-SEM] visit_BlockStmt: {len(node.statements)} sentencias")
@@ -436,6 +431,11 @@ class SemanticAnalyzer:
             print(f"[DEBUG-SEM]   Bloque completado")
         finally:
             self.current_scope = prev_scope
+
+    def visit_VarDeclStmt(self, node: VarDeclStmt):
+        """Analiza sentencia de declaración de variable"""
+        print(f"[DEBUG-SEM] visit_VarDeclStmt")
+        self.visit_VarDecl(node.var_decl)
 
     def visit_IfStmt(self, node: IfStmt):
         """Analiza sentencia if"""
@@ -471,9 +471,32 @@ class SemanticAnalyzer:
 
         try:
             if node.init:
-                # Init puede ser una VarDecl o una Expression
-                if isinstance(node.init, VarDecl):
-                    self.visit_VarDecl(node.init)
+                # Init puede ser VarDecl, VarDeclSinPunto o Expression
+                if isinstance(node.init, (VarDecl, VarDeclSinPunto)):
+                    # Ambos usan declarators
+                    var_type = self.token_to_type(node.init.type_token)
+                    for declarator in node.init.declarators:
+                        sym = Symbol(
+                            name=declarator.name_token.lexeme,
+                            type_=var_type,
+                            kind="variable",
+                            token=declarator.name_token,
+                            scope_level=self.current_scope.level,
+                            is_initialized=declarator.initializer is not None,
+                            is_array=declarator.is_array
+                        )
+                        try:
+                            self.current_scope.define(declarator.name_token.lexeme, sym)
+                        except SemanticError as e:
+                            self.errors.append(str(e))
+                        
+                        if declarator.initializer:
+                            init_type = self.visit_Expression(declarator.initializer)
+                            if not self.type_system.is_assignable(var_type, init_type):
+                                self.errors.append(
+                                    f"[L{declarator.name_token.line},C{declarator.name_token.column}] "
+                                    f"Cannot assign {init_type} to {var_type}"
+                                )
                 else:
                     self.visit_Expression(node.init)
             
@@ -497,7 +520,7 @@ class SemanticAnalyzer:
         switch_type = self.visit_Expression(node.expr)
 
         for case in node.cases:
-            if case.case_expr and not case.is_default:
+            if case.case_expr:
                 case_type = self.visit_Expression(case.case_expr)
                 if not self.type_system.is_assignable(switch_type, case_type):
                     case_line = self._get_node_line(case.case_expr)
@@ -540,10 +563,20 @@ class SemanticAnalyzer:
         """Visitor genérico para expresiones - retorna el tipo"""
         if isinstance(node, AssignExpr):
             return self.visit_AssignExpr(node)
+        elif isinstance(node, LogicalOrExpr):
+            return self.visit_LogicalOrExpr(node)
+        elif isinstance(node, LogicalAndExpr):
+            return self.visit_LogicalAndExpr(node)
+        elif isinstance(node, EqualityExpr):
+            return self.visit_EqualityExpr(node)
+        elif isinstance(node, RelationalExpr):
+            return self.visit_RelationalExpr(node)
         elif isinstance(node, BinaryExpr):
             return self.visit_BinaryExpr(node)
         elif isinstance(node, UnaryExpr):
             return self.visit_UnaryExpr(node)
+        elif isinstance(node, PostfixExpr):
+            return self.visit_PostfixExpr(node)
         elif isinstance(node, CallExpr):
             return self.visit_CallExpr(node)
         elif isinstance(node, IndexExpr):
@@ -630,6 +663,61 @@ class SemanticAnalyzer:
 
         return target_sym.type_
 
+    def visit_LogicalOrExpr(self, node: LogicalOrExpr) -> TypeKind:
+        """EXPRLOGICA': op_or EXPRAND EXPRLOGICA'"""
+        left_type = self.visit_Expression(node.left)
+        right_type = self.visit_Expression(node.right)
+        
+        if left_type != TypeKind.BOOL or right_type != TypeKind.BOOL:
+            if left_type != TypeKind.ERROR and right_type != TypeKind.ERROR:
+                self.errors.append(
+                    f"[L{node.operator.line},C{node.operator.column}] "
+                    f"Logical OR requires BOOL operands, got {left_type} and {right_type}"
+                )
+        return TypeKind.BOOL
+
+    def visit_LogicalAndExpr(self, node: LogicalAndExpr) -> TypeKind:
+        """EXPRAND': op_and EXPRIGUALDAD EXPRAND'"""
+        left_type = self.visit_Expression(node.left)
+        right_type = self.visit_Expression(node.right)
+        
+        if left_type != TypeKind.BOOL or right_type != TypeKind.BOOL:
+            if left_type != TypeKind.ERROR and right_type != TypeKind.ERROR:
+                self.errors.append(
+                    f"[L{node.operator.line},C{node.operator.column}] "
+                    f"Logical AND requires BOOL operands, got {left_type} and {right_type}"
+                )
+        return TypeKind.BOOL
+
+    def visit_EqualityExpr(self, node: EqualityExpr) -> TypeKind:
+        """EXPRIGUALDAD': (op_igual | op_distinto) EXPRRELACIONAL"""
+        left_type = self.visit_Expression(node.left)
+        right_type = self.visit_Expression(node.right)
+        
+        if not self.type_system.is_assignable(left_type, right_type) and \
+           not self.type_system.is_assignable(right_type, left_type):
+            if left_type != TypeKind.ERROR and right_type != TypeKind.ERROR:
+                self.errors.append(
+                    f"[L{node.operator.line},C{node.operator.column}] "
+                    f"Equality operator requires compatible types, got {left_type} and {right_type}"
+                )
+        return TypeKind.BOOL
+
+    def visit_RelationalExpr(self, node: RelationalExpr) -> TypeKind:
+        """EXPRRELACIONAL': relop EXPRADITIVA"""
+        left_type = self.visit_Expression(node.left)
+        right_type = self.visit_Expression(node.right)
+        
+        # Operadores relacionales requieren tipos numéricos
+        if not self.type_system.is_numeric(left_type) or \
+           not self.type_system.is_numeric(right_type):
+            if left_type != TypeKind.ERROR and right_type != TypeKind.ERROR:
+                self.errors.append(
+                    f"[L{node.operator.line},C{node.operator.column}] "
+                    f"Relational operator requires numeric operands, got {left_type} and {right_type}"
+                )
+        return TypeKind.BOOL
+
     def visit_BinaryExpr(self, node: BinaryExpr) -> TypeKind:
         """Analiza expresión binaria"""
         left_type = self.visit_Expression(node.left)
@@ -684,6 +772,28 @@ class SemanticAnalyzer:
                 )
             return operand_type
 
+        return operand_type
+
+    def visit_PostfixExpr(self, node: PostfixExpr) -> TypeKind:
+        """Analiza expresión postfija: expr++ o expr--"""
+        operand_type = self.visit_Expression(node.operand)
+        
+        # Operando debe ser una variable (IdentifierExpr)
+        if not isinstance(node.operand, IdentifierExpr):
+            self.errors.append(
+                f"[L{node.operator.line},C{node.operator.column}] "
+                f"Cannot apply {node.operator.lexeme} to non-variable"
+            )
+            return TypeKind.ERROR
+        
+        # Tipo debe ser numérico
+        if not self.type_system.is_numeric(operand_type):
+            self.errors.append(
+                f"[L{node.operator.line},C{node.operator.column}] "
+                f"Cannot apply {node.operator.lexeme} to {operand_type}"
+            )
+            return TypeKind.ERROR
+        
         return operand_type
 
     def visit_CallExpr(self, node: CallExpr) -> TypeKind:

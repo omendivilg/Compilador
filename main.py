@@ -17,10 +17,10 @@ def main():
             code = f.read()
         print(f"[DEBUG] Archivo {FILENAME} leído ({len(code)} caracteres)")
     except FileNotFoundError:
-        print(f"❌ Error: No se encontró {FILENAME}")
+        print(f" Error: No se encontró {FILENAME}")
         return
     except Exception as e:
-        print(f"❌ Error al leer archivo: {e}")
+        print(f" Error al leer archivo: {e}")
         return
 
     # ===== FASE 1: ANÁLISIS LÉXICO =====
@@ -79,9 +79,9 @@ def main():
         for error in semantic_errors:
             print(f"  • {error}")
     else:
-        print("✅ Analisis semantico valido")
+        print(" Analisis semantico valido")
         print("\n" + "="*50)
-        print("✅ COMPILACION EXITOSA")
+        print(" COMPILACION EXITOSA")
         print("="*50)
 
 

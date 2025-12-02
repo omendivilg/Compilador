@@ -94,20 +94,36 @@ class Parser:
 
     # DeclVar → Tipo ListaId PUNTO_COMA
     def decl_var_resto(self, type_token: Token, first_id: Token) -> VarDecl:
-        items = []
+        declarators = []
         
         # Primer item
         init_expr = self.inicializacion()
-        items.append(VarDeclItem(first_id, init_expr, is_array=False))
+        declarators.append(VarDeclarator(first_id, init_expr, is_array=False))
         
         # Items adicionales
         while self.match(TokenType.COMA):
             id_token = self.consume(TokenType.ID, "Expected identifier after ','")
             init_expr = self.inicializacion()
-            items.append(VarDeclItem(id_token, init_expr, is_array=False))
+            declarators.append(VarDeclarator(id_token, init_expr, is_array=False))
         
         self.consume(TokenType.PUNTO_COMA, "Expected ';' after variable declaration")
-        return VarDecl(type_token, items)
+        return VarDecl(type_token, declarators)
+
+    # DeclVarSinPunto → TIPO LISTAID (sin punto y coma, para for init)
+    def decl_var_sin_punto(self, type_token: Token, first_id: Token) -> VarDeclSinPunto:
+        declarators = []
+        
+        # Primer item
+        init_expr = self.inicializacion()
+        declarators.append(VarDeclarator(first_id, init_expr, is_array=False))
+        
+        # Items adicionales
+        while self.match(TokenType.COMA):
+            id_token = self.consume(TokenType.ID, "Expected identifier after ','")
+            init_expr = self.inicializacion()
+            declarators.append(VarDeclarator(id_token, init_expr, is_array=False))
+        
+        return VarDeclSinPunto(type_token, declarators)
 
     # Inicializacion → OP_ASIG Expr | ε
     def inicializacion(self) -> Optional[Expression]:
@@ -143,21 +159,21 @@ class Parser:
         return FuncDecl(return_type, id_tok, parameters, body)
 
     # Parametros → ParamLista | ε
-    def parametros(self) -> List[Parameter]:
+    def parametros(self) -> List[Param]:
         return self.param_lista()
 
     # ParamLista → Param | Param COMA ParamLista
-    def param_lista(self) -> List[Parameter]:
+    def param_lista(self) -> List[Param]:
         params = [self.param()]
         while self.match(TokenType.COMA):
             params.append(self.param())
         return params
 
     # Param → Tipo ID
-    def param(self) -> Parameter:
+    def param(self) -> Param:
         type_token = self.tipo()
         name_token = self.consume(TokenType.ID, "Expected parameter name")
-        return Parameter(type_token, name_token)
+        return Param(type_token, name_token)
 
     # ===== clases =====
 
@@ -247,14 +263,14 @@ class Parser:
             type_token = self.tipo()
             id_tok = self.consume(TokenType.ID, "Expected identifier after type")
             
-            items = []
+            declarators = []
             
             # Puede ser un arreglo: int arr[10];
             if self.match(TokenType.CORCHETE_IZQ):
                 # Es una declaración de arreglo
                 size_expr = self.expr()
                 self.consume(TokenType.CORCHETE_DER, "Expected ']' after array size")
-                items.append(VarDeclItem(id_tok, None, is_array=True))
+                declarators.append(VarDeclarator(id_tok, None, is_array=True))
                 
                 # Mas items si hay comas
                 while self.match(TokenType.COMA):
@@ -264,7 +280,7 @@ class Parser:
                         self.expr()
                         self.consume(TokenType.CORCHETE_DER, "Expected ']'")
                         is_arr = True
-                    items.append(VarDeclItem(id_token, None, is_array=is_arr))
+                    declarators.append(VarDeclarator(id_token, None, is_array=is_arr))
                 
                 self.consume(TokenType.PUNTO_COMA, "Expected ';' after array declaration")
             else:
@@ -272,19 +288,20 @@ class Parser:
                 init_expr = None
                 if self.match(TokenType.OP_ASIG):
                     init_expr = self.expr()
-                items.append(VarDeclItem(id_tok, init_expr, is_array=False))
+                declarators.append(VarDeclarator(id_tok, init_expr, is_array=False))
                 
                 while self.match(TokenType.COMA):
                     id_token = self.consume(TokenType.ID, "Expected identifier")
                     init_expr = None
                     if self.match(TokenType.OP_ASIG):
                         init_expr = self.expr()
-                    items.append(VarDeclItem(id_token, init_expr, is_array=False))
+                    declarators.append(VarDeclarator(id_token, init_expr, is_array=False))
                 
                 self.consume(TokenType.PUNTO_COMA, "Expected ';' after variable declaration")
             
             # Retornar como VarDeclStmt
-            return VarDeclStmt(VarDecl(type_token, items))
+            var_decl = VarDecl(type_token, declarators)
+            return VarDeclStmt(var_decl)
         
         elif self.check(TokenType.LLAVE_IZQ):
             return self.bloque()
@@ -344,13 +361,12 @@ class Parser:
                 # Es una declaración de variable (sin el PUNTO_COMA final)
                 type_token = self.tipo()
                 id_tok = self.consume(TokenType.ID, "Expected identifier in for init")
-                items = []
                 
                 # Inicializador opcional
                 init_expr = None
                 if self.match(TokenType.OP_ASIG):
                     init_expr = self.expr()
-                items.append(VarDeclItem(id_tok, init_expr, is_array=False))
+                declarators = [VarDeclarator(id_tok, init_expr, is_array=False)]
                 
                 # Más items si hay comas
                 while self.match(TokenType.COMA):
@@ -358,9 +374,9 @@ class Parser:
                     init_expr = None
                     if self.match(TokenType.OP_ASIG):
                         init_expr = self.expr()
-                    items.append(VarDeclItem(id_token, init_expr, is_array=False))
+                    declarators.append(VarDeclarator(id_token, init_expr, is_array=False))
                 
-                init = VarDecl(type_token, items)
+                init = VarDeclSinPunto(type_token, declarators)
             else:
                 # Es una expresión normal
                 init = self.expr()
@@ -410,11 +426,11 @@ class Parser:
             case_expr = self.expr()
             self.consume(TokenType.PUNTO_COMA, "Expected ':' after case expression")
             statements = self.lista_sentencias()
-            return CaseStmt(case_expr, statements, is_default=False)
+            return CaseStmt(case_expr, statements)
         elif self.match(TokenType.DEFAULT):
             self.consume(TokenType.PUNTO_COMA, "Expected ':' after default")
             statements = self.lista_sentencias()
-            return CaseStmt(None, statements, is_default=True)
+            return CaseStmt(None, statements)
         return None
 
     # return
@@ -459,7 +475,7 @@ class Parser:
             op_tok = self.current()
             self.match(TokenType.OP_OR)
             right = self.expr_and()
-            left = BinaryExpr(left, op_tok, right)
+            left = LogicalOrExpr(left, op_tok, right)
         return left
 
     # ExprAnd → ExprIgual (OP_AND ExprIgual)*
@@ -469,7 +485,7 @@ class Parser:
             op_tok = self.current()
             self.match(TokenType.OP_AND)
             right = self.expr_igual()
-            left = BinaryExpr(left, op_tok, right)
+            left = LogicalAndExpr(left, op_tok, right)
         return left
 
     # ExprIgual → ExprRel ( (OP_IGUAL | OP_DISTINTO) ExprRel )*
@@ -479,7 +495,7 @@ class Parser:
             op_tok = self.current()
             self.match(TokenType.OP_IGUAL, TokenType.OP_DISTINTO)
             right = self.expr_rel()
-            left = BinaryExpr(left, op_tok, right)
+            left = EqualityExpr(left, op_tok, right)
         return left
 
     # ExprRel → ExprAditiva (relop ExprAditiva)*
@@ -495,7 +511,7 @@ class Parser:
                 TokenType.OP_MAYOR, TokenType.OP_MAYOR_IG
             )
             right = self.expr_aditiva()
-            left = BinaryExpr(left, op_tok, right)
+            left = RelationalExpr(left, op_tok, right)
         return left
 
     # ExprAditiva → Term ( (OP_SUMA | OP_RESTA) Term )*
@@ -523,19 +539,19 @@ class Parser:
         if self.match(TokenType.OP_NOT):
             op_tok = self.tokens[self.pos - 1]
             operand = self.factor()
-            return UnaryExpr(op_tok, operand, is_postfix=False)
+            return UnaryExpr(op_tok, operand, is_prefix=True)
         elif self.match(TokenType.OP_RESTA):
             op_tok = self.tokens[self.pos - 1]
             operand = self.factor()
-            return UnaryExpr(op_tok, operand, is_postfix=False)
+            return UnaryExpr(op_tok, operand, is_prefix=True)
         elif self.match(TokenType.OP_INC):
             op_tok = self.tokens[self.pos - 1]
             operand = self.expr_postfija()
-            return UnaryExpr(op_tok, operand, is_postfix=False)
+            return UnaryExpr(op_tok, operand, is_prefix=True)
         elif self.match(TokenType.OP_DEC):
             op_tok = self.tokens[self.pos - 1]
             operand = self.expr_postfija()
-            return UnaryExpr(op_tok, operand, is_postfix=False)
+            return UnaryExpr(op_tok, operand, is_prefix=True)
         else:
             return self.expr_postfija()
 
@@ -545,10 +561,10 @@ class Parser:
         
         if self.match(TokenType.OP_INC):
             op_tok = self.tokens[self.pos - 1]
-            return UnaryExpr(op_tok, expr_node, is_postfix=True)
+            return PostfixExpr(expr_node, op_tok)
         elif self.match(TokenType.OP_DEC):
             op_tok = self.tokens[self.pos - 1]
-            return UnaryExpr(op_tok, expr_node, is_postfix=True)
+            return PostfixExpr(expr_node, op_tok)
         
         return expr_node
 
