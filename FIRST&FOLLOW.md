@@ -1,249 +1,198 @@
-# FIRST y FOLLOW – Gramática Actualizada
+# FIRST Rules
 
-Este documento resume los conjuntos **FIRST** y **FOLLOW** para la gramática completa del compilador.
+FIRST(S) = { bof }
 
----
+FIRST(PROGRAMA) = { int, float, double, char, bool, void, class }
+FIRST(LISTADECL) = { int, float, double, char, bool, void, class }
+FIRST(LISTADECL') = { int, float, double, char, bool, void, class, ε }
 
-## FIRST (qué puede iniciar cada regla)
+FIRST(DECL) = { int, float, double, char, bool, void, class }
 
-### FIRST(S)
+FIRST(DECLVAR) = { int, float, double, char, bool, void }
+FIRST(DECLVARSINPUNTO) = { int, float, double, char, bool, void }
 
-{ bof }
+FIRST(LISTAID) = { id }
+FIRST(LISTAID') = { coma, ε }
 
-scss
-Copy code
+FIRST(INICIALIZACION) = { op_asig, ε }
 
-### FIRST(PROGRAMA), LISTADECL, DECL
+FIRST(TIPO) = { int, float, double, char, bool, void }
 
-{ int, float, double, char, bool, void, class }
+FIRST(DECLFUNC) = { int, float, double, char, bool, void }
 
-scss
-Copy code
-Representan cualquier tipo de declaración inicial.
+FIRST(PARAMETROS) = { int, float, double, char, bool, void, ε }
+FIRST(PARAMLISTA) = { int, float, double, char, bool, void }
+FIRST(PARAMLISTA') = { coma, ε }
+FIRST(PARAM) = { int, float, double, char, bool, void }
 
-### FIRST(TIPO)
+FIRST(DECLCLASE) = { class }
+FIRST(LISTAMIEMBROS) = { public, private, int, float, double, char, bool, void, ε }
+FIRST(LISTAMIEMBROS') = { public, private, int, float, double, char, bool, void, ε }
+FIRST(MIEMBRO) = { public, private, int, float, double, char, bool, void }
 
-{ int, float, double, char, bool, void }
+FIRST(MODIFICADORACCESO) = { public, private, ε }
 
-scss
-Copy code
+FIRST(BLOQUE) = { llave_izq }
+FIRST(LISTASENTENCIAS) = {
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq, op_not, op_resta, op_inc, op_dec, punto_coma,
+if, while, for, return, switch, llave_izq,
+ε
+}
+FIRST(LISTASENTENCIAS') = {
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq, op_not, op_resta, op_inc, op_dec, punto_coma,
+if, while, for, return, switch, llave_izq,
+ε
+}
 
-### FIRST(DECLVAR), FIRST(DECLVARSINPUNTO)
-
-Ambas comienzan con un tipo:
-{ int, float, double, char, bool, void }
-
-scss
-Copy code
-
-### FIRST(LISTAID)
-
-{ id }
-
-scss
-Copy code
-
-### FIRST(INICIALIZACION)
-
-{ op_asig, ε }
-
-scss
-Copy code
-
-### FIRST(DECLFUNC)
-
-{ int, float, double, char, bool, void }
-
-scss
-Copy code
-
-### FIRST(DECLCLASE)
-
-{ class }
-
-scss
-Copy code
-
-### FIRST(MIEMBRO)
-
-{ public, private, int, float, double, char, bool, void }
-
-scss
-Copy code
-
-### FIRST(BLOQUE)
-
-{ llave_izq }
-
-scss
-Copy code
-
-### FIRST(SENTENCIA)
-
-Incluye todos los elementos que pueden iniciar una sentencia:
-{
+FIRST(SENTENCIA) = {
 id, num_int, num_float, num_exp, string, char, true, false,
 paren_izq, op_not, op_resta, op_inc, op_dec, punto_coma,
 if, while, for, return, switch, llave_izq
 }
 
-scss
-Copy code
+FIRST(SENTENCIAEXPR) = {
+id, num_int, num_float, num_float, num_exp, string, char, true, false,
+paren_izq, op_not, op_resta, op_inc, op_dec, punto_coma
+}
 
-### FIRST(SENTENCIASEL)
+FIRST(SENTENCIASEL) = { if }
+FIRST(SENTENCIAITER) = { while, for }
+FIRST(SENTENCIARET) = { return }
+FIRST(SENTENCIASWITCH) = { switch }
 
-{ if }
-
-scss
-Copy code
-
-### FIRST(SENTENCIAITER)
-
-{ while, for }
-
-scss
-Copy code
-
-### FIRST(SENTENCIARET)
-
-{ return }
-
-scss
-Copy code
-
-### FIRST(SENTENCIASWITCH)
-
-{ switch }
-
-scss
-Copy code
-
-### FIRST(FORINIT)
-
-{
+FIRST(FORINIT) = {
 int, float, double, char, bool, void,
 id, num_int, num_float, num_exp, string, char, true, false,
 paren_izq, op_not, op_resta, op_inc, op_dec,
 ε
 }
 
-scss
-Copy code
-
-### FIRST(FORUPDATE)
-
-FIRST(EXPR) ∪ { ε }
-
-scss
-Copy code
-
-### FIRST(CASO), FIRST(LISTACASOS)
-
-{ case, default }
-
-scss
-Copy code
-
-### FIRST(EXPR) (y todos sus niveles)
-
-{
-id, num_int, num_float, num_exp, string, char,
-true, false,
-paren_izq,
-op_not, op_resta, op_inc, op_dec
+FIRST(FORUPDATE) = {
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq, op_not, op_resta, op_inc, op_dec,
+ε
 }
 
-yaml
-Copy code
+FIRST(LISTACASOS) = { case, default }
+FIRST(LISTACASOS') = { case, default, ε }
+FIRST(CASO) = { case, default }
+
+FIRST(EXPR) = {
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq, op_not, op_resta, op_inc, op_dec
+}
+
+FIRST(EXPRASIGNACION) = FIRST(EXPR)
+FIRST(EXPRASIGNACION') = { op_asig, ε }
+
+FIRST(EXPRLOGICA) = FIRST(EXPR)
+FIRST(EXPRLOGICA') = { op_or, ε }
+
+FIRST(EXPRAND) = FIRST(EXPR)
+FIRST(EXPRAND') = { op_and, ε }
+
+FIRST(EXPRIGUALDAD) = FIRST(EXPR)
+FIRST(EXPRIGUALDAD') = { op_igual, op_distinto, ε }
+
+FIRST(EXPRRELACIONAL) = FIRST(EXPR)
+FIRST(EXPRRELACIONAL') = { op_menor, op_menor_ig, op_mayor, op_mayor_ig, ε }
+
+FIRST(EXPRADITIVA) = FIRST(EXPR)
+FIRST(EXPRADITIVA') = { op_suma, op_resta, ε }
+
+FIRST(TERM) = FIRST(EXPR)
+FIRST(TERM') = { op_mult, op_div, op_mod, ε }
+
+FIRST(FACTOR) = {
+op_not, op_resta, op_inc, op_dec,
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq
+}
+
+FIRST(EXPRPOSTFIJA) = FIRST(EXPRPRIMARIA)
+FIRST(EXPRPOSTFIJA') = { op_inc, op_dec, ε }
+
+FIRST(EXPRPRIMARIA) = {
+id, num_int, num_float, num_exp, string, char, true, false,
+paren_izq
+}
+
+FIRST(LLAMADAFUNC) = { id }
+FIRST(ARGSOPTS) = { id, num_int, num_float, num_exp, string, char, true, false, paren_izq, op_not, op_resta, op_inc, op_dec, ε }
+FIRST(LISTAARGS) = FIRST(EXPR)
+FIRST(LISTAARGS') = { coma, ε }
+
+FIRST(ACCESOARREGLO) = { id }
+
+FIRST(LITERAL) = { num_int, num_float, num_exp, string, char, true, false }
 
 ---
 
-## FOLLOW (qué puede venir después de cada regla)
+# FOLLOW Rules
 
-### FOLLOW(S), FOLLOW(PROGRAMA), FOLLOW(LISTADECL)
+FOLLOW(S) = { eof }
+FOLLOW(PROGRAMA) = { eof }
+FOLLOW(LISTADECL) = { eof }
 
-{ eof }
+FOLLOW(DECL) = { int, float, double, char, bool, void, class, eof }
 
-scss
-Copy code
+FOLLOW(LISTAID') = { punto_coma }
 
-### FOLLOW(DECL)
+FOLLOW(TIPO) = { id }
 
-{ int, float, double, char, bool, void, class, eof }
+FOLLOW(PARAMETROS) = { paren_der }
+FOLLOW(PARAMLISTA) = { paren_der }
+FOLLOW(PARAMLISTA') = { paren_der }
+FOLLOW(PARAM) = { coma, paren_der }
 
-scss
-Copy code
+FOLLOW(DECLCLASE) = { int, float, double, char, bool, void, class, eof }
 
-### FOLLOW(LISTAID), FOLLOW(DECLVARSINPUNTO)
-
-{ punto_coma }
-
-scss
-Copy code
-
-### FOLLOW(TIPO)
-
-{ id }
-
-scss
-Copy code
-
-### FOLLOW(BLOQUE)
-
-{
-else, while, for, if, return, switch,
-llave_der, case, default, eof,
-int, float, double, char, bool, void, class
+FOLLOW(BLOQUE) = {
+int, float, double, char, bool, void,
+id, lparen, num_int, num_float, num_exp, string, char, true, false,
+op_not, punto_coma, if, else, while, for, return, switch,
+llave_izq, llave_der, eof
 }
 
-scss
-Copy code
+FOLLOW(LISTASENTENCIAS) = { llave_der }
+FOLLOW(SENTENCIA) = {
+int, float, double, char, bool, void,
+id, paren_izq, num_int, num_float, num_exp, string, char, true, false,
+op_not, punto_coma, if, else, while, for, return, switch,
+llave_izq, llave_der
+}
 
-### FOLLOW(SENTENCIA), FOLLOW(LISTASENTENCIAS)
+FOLLOW(SENTENCIASEL) = FOLLOW(SENTENCIA)
+FOLLOW(SENTENCIAITER) = FOLLOW(SENTENCIA)
+FOLLOW(SENTENCIARET) = FOLLOW(SENTENCIA)
+FOLLOW(SENTENCIASWITCH) = FOLLOW(SENTENCIA)
 
-{ llave_der }
+FOLLOW(CASO) = { case, default, llave_der }
 
-scss
-Copy code
-
-### FOLLOW(SENTENCIASWITCH)
-
-{ llave_der }
-
-scss
-Copy code
-
-### FOLLOW(LISTACASOS)
-
-{ llave_der }
-
-scss
-Copy code
-
-### FOLLOW(CASO)
-
-{ case, default, llave_der }
-
-yaml
-Copy code
-
----
-
-## FOLLOW(EXPR) – para todos los niveles de expresiones
-
-Cualquier expresión puede ser seguida por operadores o delimitadores:
-
-{
+FOLLOW(EXPR) = {
+punto_coma, paren_der, coma, corchete_der,
 op_asig,
-op_or,
-op_and,
+op_or, op_and,
 op_igual, op_distinto,
 op_menor, op_menor_ig, op_mayor, op_mayor_ig,
 op_suma, op_resta,
 op_mult, op_div, op_mod,
-op_inc, op_dec,
-paren_der,
-corchete_der,
-coma,
-punto_coma
+op_inc, op_dec
 }
+
+FOLLOW(EXPRASIGNACION) = FOLLOW(EXPR)
+FOLLOW(EXPRLOGICA) = FOLLOW(EXPR)
+FOLLOW(EXPRAND) = FOLLOW(EXPR)
+FOLLOW(EXPRIGUALDAD) = FOLLOW(EXPR)
+FOLLOW(EXPRRELACIONAL) = FOLLOW(EXPR)
+FOLLOW(EXPRADITIVA) = FOLLOW(EXPR)
+FOLLOW(TERM) = FOLLOW(EXPR)
+FOLLOW(FACTOR) = FOLLOW(EXPR)
+FOLLOW(EXPRPOSTFIJA) = FOLLOW(EXPR)
+FOLLOW(EXPRPRIMARIA) = FOLLOW(EXPR)
+FOLLOW(LLAMADAFUNC) = FOLLOW(EXPR)
+FOLLOW(ACCESOARREGLO) = FOLLOW(EXPR)
+FOLLOW(LISTAARGS) = { paren_der }
+FOLLOW(LISTAARGS') = { paren_der }
