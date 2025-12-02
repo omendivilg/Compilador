@@ -1,0 +1,63 @@
+int x = 0, y = 10;
+bool flag = true;
+double z;
+
+class Counter {
+    public int value;
+    
+    public void incBy(int delta) {
+        value = value + delta;
+    }
+    
+    private int doubleValue() {
+        int temp = 0;
+        temp = value * 2;
+        return temp;
+    }
+}
+
+int sum(int a, int b) {
+    int result = 0;
+    result = a + b;
+    return result;
+}
+
+void main() {
+    int i = 0;
+    int total = 0;
+
+    // while con condición booleana válida
+    while (i < 5) {
+        total = sum(total, i);
+        i = i + 1;
+    }
+
+    // for completo: init (declaración), condición, update
+    for (int j = 0; j < 3; j = j + 1) {
+        total = total + j;
+    }
+
+    int option = 2;
+
+    // switch con cases compatibles con el tipo de 'option' (int)
+    switch (option) {
+        case 1;
+            total = total + 10;
+        case 2;
+            total = total + 20;
+        default;
+            total = total + 1;
+    }
+
+    // if con expresión lógica usando && y comparación
+    if (total > 0 && flag) {
+        x = total;
+    } else {
+        x = -1;
+    }
+
+    // uso de operadores unarios
+    x = x + 1;
+    y++;
+    --y;
+}

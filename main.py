@@ -10,13 +10,14 @@ if sys.platform == "win32":
 
 def main():
     # 1. Leer el archivo de prueba
+    FILENAME = "test_ok.txt"
     print("[DEBUG] Iniciando compilador...")
     try:
-        with open("test.txt", "r", encoding="utf-8") as f:
+        with open(FILENAME, "r", encoding="utf-8") as f:
             code = f.read()
-        print(f"[DEBUG] Archivo test.txt leído ({len(code)} caracteres)")
+        print(f"[DEBUG] Archivo {FILENAME} leído ({len(code)} caracteres)")
     except FileNotFoundError:
-        print("❌ Error: No se encontró test.txt")
+        print(f"❌ Error: No se encontró {FILENAME}")
         return
     except Exception as e:
         print(f"❌ Error al leer archivo: {e}")

@@ -1,0 +1,51 @@
+int a;
+bool flag;
+int arr;
+
+int add(int x, int y)
+{
+    return x + y;
+}
+
+void main()
+{
+    int result;
+
+    // 1) Error: número incorrecto de parámetros (add espera 2, le mandamos 3)
+    result = add(1, 2, 3);
+
+    // 2) Error: variable no declarada (value nunca se declaró)
+    value = 10;
+
+    // 3) Error: tipos incompatibles en asignación (int = bool)
+    a = flag;
+
+    // 4) Error: condición de if no booleana (result es int)
+    if (result)
+    {
+        a = a + 1;
+    }
+
+    // 5) Error: condición de while no booleana (42 es int)
+    while (42)
+    {
+        a = a + 1;
+    }
+
+    // 6) Error: operador postfijo sobre literal (5++ no tiene lado asignable)
+    5 ++;
+
+    int opt = 1;
+
+    // 7) Error: switch con expresión booleana pero case de tipo int
+    switch (flag)
+    {
+        case 1;
+            a = 0;
+        default;
+            a = 1;
+    }
+
+    // 8) Error: índice de arreglo no entero (flag es bool)
+    a = arr[flag];
+}

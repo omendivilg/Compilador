@@ -97,45 +97,45 @@ ID → id
 
 ### Palabras Reservadas:
 
-* int, float, double, char, bool, void
-* if, else, while, for, switch, case, default
-* return, class, public, private
-* true, false
+- int, float, double, char, bool, void
+- if, else, while, for, switch, case, default
+- return, class, public, private
+- true, false
 
 ### Operadores:
 
-* Aritméticos: op_suma, op_resta, op_mult, op_div, op_mod
-* Asignación: op_asig
-* Incremento/Decremento: op_inc, op_dec
-* Relacionales: op_menor, op_menor_ig, op_mayor, op_mayor_ig
-* Igualdad: op_igual, op_distinto
-* Lógicos: op_and, op_or, op_not
+- Aritméticos: op_suma, op_resta, op_mult, op_div, op_mod
+- Asignación: op_asig
+- Incremento/Decremento: op_inc, op_dec
+- Relacionales: op_menor, op_menor_ig, op_mayor, op_mayor_ig
+- Igualdad: op_igual, op_distinto
+- Lógicos: op_and, op_or, op_not
 
 ### Delimitadores:
 
-* paren_izq, paren_der
-* llave_izq, llave_der
-* corchete_izq, corchete_der
-* punto_coma, coma, punto
+- paren_izq, paren_der
+- llave_izq, llave_der
+- corchete_izq, corchete_der
+- punto_coma, coma, punto
 
 ### Literales y Identificadores:
 
-* id (identificadores)
-* num_int, num_float, num_exp (números)
-* string, char (cadenas y caracteres)
+- id (identificadores)
+- num_int, num_float, num_exp (números)
+- string, char (cadenas y caracteres)
 
 ### Especiales:
 
-* bof (beginning of file)
-* eof (end of file)
-* ε (épsilon - cadena vacía)
+- bof (beginning of file)
+- eof (end of file)
+- ε (épsilon - cadena vacía)
 
 ## Precedencia de Operadores (Mayor a Menor):
 
 1. (), [] - paréntesis, acceso a arreglos
 2. ++, -- (postfijo)
 3. ++, -- (prefijo), !, - (unario)
-4. *, /, %
+4. \*, /, %
 5. +, -
 6. <, <=, >, >=
 7. ==, !=
@@ -145,5 +145,5 @@ ID → id
 
 ## Asociatividad:
 
-* Izquierda a derecha: operadores aritméticos, relacionales, lógicos
-* Derecha a izquierda: asignación, operadores unarios
+- Izquierda a derecha: operadores aritméticos, relacionales, lógicos
+- Derecha a izquierda: asignación, operadores unarios
