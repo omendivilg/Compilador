@@ -139,27 +139,42 @@ class SemanticAnalyzer:
 
     def analyze(self, program: Program) -> List[str]:
         """Entrada principal del análisis semántico"""
+        print("[DEBUG-SEM] Iniciando analyze()")
         self.global_scope = Scope("global")
         self.current_scope = self.global_scope
+        print(f"[DEBUG-SEM] Global scope creado")
 
         try:
+            print(f"[DEBUG-SEM] Visitando programa con {len(program.declarations)} declaraciones")
             self.visit_Program(program)
+            print(f"[DEBUG-SEM] visit_Program completado")
         except SemanticError as e:
+            print(f"[DEBUG-SEM] SemanticError capturado: {e}")
             self.errors.append(str(e))
+        except Exception as e:
+            print(f"[DEBUG-SEM] Excepción inesperada: {e}")
+            import traceback
+            traceback.print_exc()
 
+        print(f"[DEBUG-SEM] Análisis completado con {len(self.errors)} errores")
         return self.errors
 
     # ===== VISITORS: Programa y Declaraciones =====
 
     def visit_Program(self, node: Program):
         """Análisis de programa"""
+        print("[DEBUG-SEM] visit_Program: Primera pasada - colectando declaraciones")
         # Primera pasada: colectar declaraciones de nivel superior
-        for decl in node.declarations:
+        for i, decl in enumerate(node.declarations):
+            print(f"[DEBUG-SEM]   Colectando declaración {i}: {type(decl).__name__}")
             self.collect_declaration(decl)
 
+        print("[DEBUG-SEM] visit_Program: Segunda pasada - visitando declaraciones")
         # Segunda pasada: verificar cuerpos
-        for decl in node.declarations:
+        for i, decl in enumerate(node.declarations):
+            print(f"[DEBUG-SEM]   Visitando declaración {i}: {type(decl).__name__}")
             self.visit_Declaration(decl)
+        print("[DEBUG-SEM] visit_Program completado")
 
     def collect_declaration(self, node: Declaration):
         """Pre-procesa declaraciones para registrar símbolos"""
@@ -214,16 +229,25 @@ class SemanticAnalyzer:
 
     def visit_Declaration(self, node: Declaration):
         """Visitor genérico para declaraciones"""
+        print(f"[DEBUG-SEM] visit_Declaration: {type(node).__name__}")
         if isinstance(node, VarDecl):
+            print("[DEBUG-SEM]   -> visitando VarDecl")
             self.visit_VarDecl(node)
         elif isinstance(node, FuncDecl):
+            func_name = node.name_token.lexeme if hasattr(node, 'name_token') else "?"
+            print(f"[DEBUG-SEM]   -> visitando FuncDecl '{func_name}'")
             self.visit_FuncDecl(node)
         elif isinstance(node, ClassDecl):
+            class_name = node.name_token.lexeme if hasattr(node, 'name_token') else "?"
+            print(f"[DEBUG-SEM]   -> visitando ClassDecl '{class_name}'")
             self.visit_ClassDecl(node)
+        else:
+            print(f"[DEBUG-SEM]   -> tipo desconocido!")
 
     def visit_VarDecl(self, node: VarDecl):
         """Analiza declaración de variable"""
         var_type = self.token_to_type(node.type_token)
+        print(f"[DEBUG-SEM] visit_VarDecl: {node.type_token.lexeme} con {len(node.declarations)} items")
 
         # VOID solo permitido en funciones
         if var_type == TypeKind.VOID:
@@ -264,15 +288,18 @@ class SemanticAnalyzer:
     def visit_FuncDecl(self, node: FuncDecl):
         """Analiza declaración de función"""
         func_name = node.name_token.lexeme
+        print(f"[DEBUG-SEM] visit_FuncDecl: '{func_name}' con {len(node.parameters)} parámetros")
 
         # Crear nuevo scope para la función
         prev_scope = self.current_scope
         self.current_scope = Scope("function", prev_scope)
         prev_function = self.current_function
         self.current_function = prev_scope.lookup(func_name)
+        print(f"[DEBUG-SEM]   Scope de función creado")
 
         try:
             # Registrar parámetros en el scope de la función
+            print(f"[DEBUG-SEM]   Registrando {len(node.parameters)} parámetros")
             for param in node.parameters:
                 param_type = self.token_to_type(param.type_token)
                 if param_type == TypeKind.VOID:
@@ -294,9 +321,10 @@ class SemanticAnalyzer:
                     self.current_scope.define(param.name_token.lexeme, param_sym)
                 except SemanticError as e:
                     self.errors.append(str(e))
-
+            print(f"[DEBUG-SEM]   Parámetros registrados, analizando body")
             # Analizar el cuerpo
             self.visit_BlockStmt(node.body)
+            print(f"[DEBUG-SEM]   Body de '{func_name}' analizado")
 
         finally:
             self.current_scope = prev_scope
@@ -383,22 +411,29 @@ class SemanticAnalyzer:
 
     def visit_ExprStmt(self, node: ExprStmt):
         """Analiza sentencia de expresión"""
+        print(f"[DEBUG-SEM] visit_ExprStmt")
         if node.expression:
+            print(f"[DEBUG-SEM]   Expresión: {type(node.expression).__name__}")
             self.visit_Expression(node.expression)
 
     def visit_VarDeclStmt(self, node: VarDeclStmt):
         """Analiza sentencia de declaración de variable"""
+        print(f"[DEBUG-SEM] visit_VarDeclStmt")
         self.visit_VarDecl(node.var_decl)
 
     def visit_BlockStmt(self, node: BlockStmt):
         """Analiza bloque de sentencias"""
+        print(f"[DEBUG-SEM] visit_BlockStmt: {len(node.statements)} sentencias")
         # Crear nuevo scope para el bloque
         prev_scope = self.current_scope
         self.current_scope = Scope("block", prev_scope)
+        print(f"[DEBUG-SEM]   Nuevo scope de bloque creado")
 
         try:
-            for stmt in node.statements:
+            for i, stmt in enumerate(node.statements):
+                print(f"[DEBUG-SEM]   Sentencia {i}: {type(stmt).__name__}")
                 self.visit_Statement(stmt)
+            print(f"[DEBUG-SEM]   Bloque completado")
         finally:
             self.current_scope = prev_scope
 

@@ -4,26 +4,26 @@ double y;
 
 class A {
     public int z = 5;
+}
 
-    private void foo(int a, int b) {
-        x = a + b;
-        
-        // Test for loop
-        for (int i = 0; i < 10; i++) {
-            x = x + 1;
-        }
-        
-        // Test while loop
-        while (x > 5) {
-            x = x - 1;
-        }
-        
-        // Test if/else
-        if (x == 5) {
-            y = 3.14;
-        } else {
-            y = 2.71;
-        }
+void hola(int a, int b) {
+    x = a + b;
+    
+    // Test for loop
+    for (int i = 0; i < 10; i++) {
+        x = x + 1;
+    }
+    
+    // Test while loop
+    while (x > 5) {
+        x = x - 1;
+    }
+    
+    // Test if/else
+    if (x == 5) {
+        y = 3.14;
+    } else {
+        y = 2.71;
     }
 }
 
@@ -35,5 +35,5 @@ void main() {
     arr[0] = 100;
     
     // Test function call
-    foo(1, 2);
+    hola(1, 2);
 }
