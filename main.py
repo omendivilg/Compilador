@@ -1,5 +1,6 @@
 from analizador_lexico import Lexer, LexError
 from parser import Parser, ParserError
+from analizador_semantico import SemanticAnalyzer
 
 
 def main():
@@ -7,7 +8,7 @@ def main():
     with open("test.txt", "r", encoding="utf-8") as f:
         code = f.read()
 
-    # 2. ANÁLISIS LÉXICO
+    # ===== FASE 1: ANÁLISIS LÉXICO =====
     try:
         lexer = Lexer(code)
         tokens = lexer.scan_tokens()
@@ -20,15 +21,31 @@ def main():
     for t in tokens:
         print(t)
 
-    # 3. ANÁLISIS SINTÁCTICO
-    print("\n=== PARSEANDO ===")
+    # ===== FASE 2: ANÁLISIS SINTÁCTICO (Genera AST) =====
+    print("\n=== ANÁLISIS SINTÁCTICO ===")
     try:
         parser = Parser(tokens)
-        parser.parse()
+        ast = parser.parse()  # Retorna el AST (Program node)
         print("✅ Sintaxis válida")
     except ParserError as e:
         print("❌ Error de sintaxis:")
         print(e)
+        return
+
+    # ===== FASE 3: ANÁLISIS SEMÁNTICO =====
+    print("\n=== ANÁLISIS SEMÁNTICO ===")
+    analyzer = SemanticAnalyzer()
+    semantic_errors = analyzer.analyze(ast)
+
+    if semantic_errors:
+        print("❌ Errores semánticos encontrados:")
+        for error in semantic_errors:
+            print(f"  • {error}")
+    else:
+        print("✅ Análisis semántico válido")
+        print("\n" + "="*50)
+        print("✅ COMPILACIÓN EXITOSA")
+        print("="*50)
 
 
 if __name__ == "__main__":
