@@ -10,7 +10,7 @@ if sys.platform == "win32":
 
 def main():
     # 1. Leer el archivo de prueba
-    FILENAME = "test_ok.txt"
+    FILENAME = "test_semantic_errors.txt"
     print("[DEBUG] Iniciando compilador...")
     try:
         with open(FILENAME, "r", encoding="utf-8") as f:

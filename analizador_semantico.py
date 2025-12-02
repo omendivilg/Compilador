@@ -46,7 +46,7 @@ class SemanticError(Exception):
 
 
 class Scope:
-    """Representa un scope (nivel de visibilidad)"""
+    """Representa scope (nivel de visibilidad)"""
     def __init__(self, scope_type: str, parent: Optional['Scope'] = None):
         self.scope_type = scope_type  # "global", "class", "function", "block"
         self.parent = parent
