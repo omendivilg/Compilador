@@ -30,38 +30,38 @@ def main():
         tokens = lexer.scan_tokens()
         print(f"[DEBUG] Análisis léxico completado ({len(tokens)} tokens generados)")
     except LexError as e:
-        print("❌ Error lexico:")
+        print(" Error lexico:")
         print(e)
         return
     except Exception as e:
-        print(f"❌ Error inesperado en análisis léxico: {e}")
+        print(f" Error inesperado en análisis léxico: {e}")
         return
 
-    print("=== TOKENS ===")
+    print("--- TOKENS ---")
     for t in tokens:
         print(t)
 
     # ===== FASE 2: ANÁLISIS SINTÁCTICO (Genera AST) =====
-    print("\n=== ANALISIS SINTACTICO ===")
+    print("\n--- ANALISIS SINTACTICO ---")
     print("[DEBUG] Iniciando análisis sintáctico...")
     try:
         parser = Parser(tokens)
         print("[DEBUG] Parser inicializado, comenzando parse()...")
         ast = parser.parse()  # Retorna el AST (Program node)
         print(f"[DEBUG] Análisis sintáctico completado, AST generado")
-        print("✅ Sintaxis valida")
+        print(" Sintaxis valida")
     except ParserError as e:
-        print("❌ Error de sintaxis:")
+        print(" Error de sintaxis:")
         print(e)
         return
     except Exception as e:
-        print(f"❌ Error inesperado en análisis sintáctico: {e}")
+        print(f" Error inesperado en análisis sintáctico: {e}")
         import traceback
         traceback.print_exc()
         return
 
     # ===== FASE 3: ANÁLISIS SEMÁNTICO =====
-    print("\n=== ANALISIS SEMANTICO ===")
+    print("\n--- ANALISIS SEMANTICO ---")
     print("[DEBUG] Iniciando análisis semántico...")
     try:
         analyzer = SemanticAnalyzer()
@@ -69,13 +69,13 @@ def main():
         semantic_errors = analyzer.analyze(ast)
         print(f"[DEBUG] Análisis semántico completado ({len(semantic_errors)} errores encontrados)")
     except Exception as e:
-        print(f"❌ Error inesperado en análisis semántico: {e}")
+        print(f" Error inesperado en análisis semántico: {e}")
         import traceback
         traceback.print_exc()
         return
 
     if semantic_errors:
-        print("❌ Errores semanticos encontrados:")
+        print(" Errores semanticos encontrados:")
         for error in semantic_errors:
             print(f"  • {error}")
     else:

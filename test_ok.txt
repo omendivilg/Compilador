@@ -18,7 +18,7 @@ class Counter {
 
 int sum(int a, int b) {
     int result = 0;
-    result = a + b;
+    result = a + -b;
     return result;
 }
 
