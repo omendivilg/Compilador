@@ -29,6 +29,7 @@ class Symbol:
     token: Token
     scope_level: int
     is_initialized: bool = False
+    is_array: bool = False  # True si es un arreglo
 
     # Atributos adicionales para funciones
     param_types: Optional[List[TypeKind]] = None
@@ -241,7 +242,8 @@ class SemanticAnalyzer:
                 kind="variable",
                 token=item.id_token,
                 scope_level=self.current_scope.level,
-                is_initialized=item.initializer is not None
+                is_initialized=item.initializer is not None,
+                is_array=item.is_array
             )
 
             try:
@@ -364,6 +366,8 @@ class SemanticAnalyzer:
         """Visitor genérico para sentencias"""
         if isinstance(node, ExprStmt):
             self.visit_ExprStmt(node)
+        elif isinstance(node, VarDeclStmt):
+            self.visit_VarDeclStmt(node)
         elif isinstance(node, BlockStmt):
             self.visit_BlockStmt(node)
         elif isinstance(node, IfStmt):
@@ -382,6 +386,10 @@ class SemanticAnalyzer:
         if node.expression:
             self.visit_Expression(node.expression)
 
+    def visit_VarDeclStmt(self, node: VarDeclStmt):
+        """Analiza sentencia de declaración de variable"""
+        self.visit_VarDecl(node.var_decl)
+
     def visit_BlockStmt(self, node: BlockStmt):
         """Analiza bloque de sentencias"""
         # Crear nuevo scope para el bloque
@@ -398,8 +406,9 @@ class SemanticAnalyzer:
         """Analiza sentencia if"""
         cond_type = self.visit_Expression(node.condition)
         if cond_type != TypeKind.BOOL and cond_type != TypeKind.ERROR:
+            cond_line = self._get_node_line(node.condition)
             self.errors.append(
-                f"[L{node.condition.operator.line}] "
+                f"[L{cond_line}] "
                 f"Condition must be boolean, got {cond_type}"
             )
 
@@ -411,8 +420,9 @@ class SemanticAnalyzer:
         """Analiza sentencia while"""
         cond_type = self.visit_Expression(node.condition)
         if cond_type != TypeKind.BOOL and cond_type != TypeKind.ERROR:
+            cond_line = self._get_node_line(node.condition)
             self.errors.append(
-                f"[L{node.condition.operator.line}] "
+                f"[L{cond_line}] "
                 f"Condition must be boolean, got {cond_type}"
             )
 
@@ -426,12 +436,18 @@ class SemanticAnalyzer:
 
         try:
             if node.init:
-                self.visit_Expression(node.init)
+                # Init puede ser una VarDecl o una Expression
+                if isinstance(node.init, VarDecl):
+                    self.visit_VarDecl(node.init)
+                else:
+                    self.visit_Expression(node.init)
+            
             if node.condition:
                 cond_type = self.visit_Expression(node.condition)
                 if cond_type != TypeKind.BOOL and cond_type != TypeKind.ERROR:
+                    cond_line = self._get_node_line(node.condition)
                     self.errors.append(
-                        f"[L{node.condition.operator.line}] "
+                        f"[L{cond_line}] "
                         f"Condition must be boolean, got {cond_type}"
                     )
             if node.update:
@@ -449,8 +465,9 @@ class SemanticAnalyzer:
             if case.case_expr and not case.is_default:
                 case_type = self.visit_Expression(case.case_expr)
                 if not self.type_system.is_assignable(switch_type, case_type):
+                    case_line = self._get_node_line(case.case_expr)
                     self.errors.append(
-                        f"[L{case.case_expr.operator.line}] "
+                        f"[L{case_line}] "
                         f"Case type {case_type} not compatible with switch type {switch_type}"
                     )
 
@@ -460,8 +477,9 @@ class SemanticAnalyzer:
     def visit_ReturnStmt(self, node: ReturnStmt):
         """Analiza sentencia return"""
         if self.current_function is None:
+            ret_line = self._get_node_line(node.return_expr) if node.return_expr else 0
             self.errors.append(
-                f"[L{node.return_expr.operator.line}] "
+                f"[L{ret_line}] "
                 f"Return outside function"
             )
             return
@@ -470,14 +488,14 @@ class SemanticAnalyzer:
         if node.return_expr is None:
             if expected_return != TypeKind.VOID:
                 self.errors.append(
-                    f"[L{node.return_expr.operator.line}] "
                     f"Function expects return type {expected_return}, got void"
                 )
         else:
             actual_return = self.visit_Expression(node.return_expr)
             if not self.type_system.is_assignable(expected_return, actual_return):
+                ret_line = self._get_node_line(node.return_expr)
                 self.errors.append(
-                    f"[L{node.return_expr.operator.line}] "
+                    f"[L{ret_line}] "
                     f"Cannot return {actual_return} from function expecting {expected_return}"
                 )
 
@@ -505,23 +523,75 @@ class SemanticAnalyzer:
 
     def visit_AssignExpr(self, node: AssignExpr) -> TypeKind:
         """Analiza expresión de asignación"""
-        target_name = node.target_token.lexeme
-        target_sym = self.current_scope.lookup(target_name)
-
-        if target_sym is None:
+        # Verifica que el target sea válido (IdentifierExpr o IndexExpr)
+        if not isinstance(node.target, (IdentifierExpr, IndexExpr)):
             self.errors.append(
-                f"[L{node.target_token.line},C{node.target_token.column}] "
-                f"Undefined variable '{target_name}'"
+                f"[L{self._get_node_line(node.target)}] Invalid assignment target"
             )
             return TypeKind.ERROR
+        
+        if isinstance(node.target, IdentifierExpr):
+            # Asignación simple: id = expr
+            target_name = node.target.id_token.lexeme
+            target_sym = self.current_scope.lookup(target_name)
 
-        value_type = self.visit_Expression(node.value)
+            if target_sym is None:
+                self.errors.append(
+                    f"[L{node.target.id_token.line},C{node.target.id_token.column}] "
+                    f"Undefined variable '{target_name}'"
+                )
+                return TypeKind.ERROR
 
-        if not self.type_system.is_assignable(target_sym.type_, value_type):
-            self.errors.append(
-                f"[L{node.target_token.line},C{node.target_token.column}] "
-                f"Cannot assign {value_type} to {target_sym.type_}"
-            )
+            value_type = self.visit_Expression(node.value)
+            
+            if not self.type_system.is_assignable(target_sym.type_, value_type):
+                self.errors.append(
+                    f"[L{node.target.id_token.line},C{node.target.id_token.column}] "
+                    f"Cannot assign {value_type} to {target_sym.type_}"
+                )
+                return TypeKind.ERROR
+            
+            node.expr_type = target_sym.type_
+            return target_sym.type_
+        
+        elif isinstance(node.target, IndexExpr):
+            # Asignación a índice: arr[idx] = expr
+            arr_name = node.target.array_token.lexeme
+            arr_sym = self.current_scope.lookup(arr_name)
+            
+            if arr_sym is None:
+                self.errors.append(
+                    f"[L{node.target.array_token.line},C{node.target.array_token.column}] "
+                    f"Undefined array '{arr_name}'"
+                )
+                return TypeKind.ERROR
+            
+            if not arr_sym.is_array:
+                self.errors.append(
+                    f"[L{node.target.array_token.line},C{node.target.array_token.column}] "
+                    f"'{arr_name}' is not an array"
+                )
+                return TypeKind.ERROR
+            
+            # Verifica el índice
+            index_type = self.visit_Expression(node.target.index)
+            if index_type != TypeKind.INT:
+                self.errors.append(
+                    f"[L{self._get_node_line(node.target.index)}] "
+                    f"Array index must be INT, got {index_type}"
+                )
+            
+            value_type = self.visit_Expression(node.value)
+            
+            if not self.type_system.is_assignable(arr_sym.type_, value_type):
+                self.errors.append(
+                    f"[L{node.target.array_token.line},C{node.target.array_token.column}] "
+                    f"Cannot assign {value_type} to array element type {arr_sym.type_}"
+                )
+                return TypeKind.ERROR
+            
+            node.expr_type = arr_sym.type_
+            return arr_sym.type_
 
         return target_sym.type_
 
@@ -664,6 +734,26 @@ class SemanticAnalyzer:
         return self.visit_Expression(node.expression)
 
     # ===== Utilidades =====
+
+    def _get_node_line(self, node: Expression) -> int:
+        """Extrae la línea de un nodo de expresión"""
+        if isinstance(node, LiteralExpr):
+            return node.value_token.line
+        elif isinstance(node, IdentifierExpr):
+            return node.id_token.line
+        elif isinstance(node, CallExpr):
+            return node.func_token.line
+        elif isinstance(node, IndexExpr):
+            return node.array_token.line
+        elif isinstance(node, BinaryExpr):
+            return node.operator.line
+        elif isinstance(node, UnaryExpr):
+            return node.operator.line
+        elif isinstance(node, AssignExpr):
+            return node.target_token.line
+        elif isinstance(node, GroupingExpr):
+            return self._get_node_line(node.expression)
+        return 0
 
     def token_to_type(self, token: Token) -> TypeKind:
         """Convierte un token de tipo a TypeKind"""

@@ -1,3 +1,4 @@
+// Prueba completa del compilador
 int x = 10;
 double y;
 
@@ -6,9 +7,33 @@ class A {
 
     private void foo(int a, int b) {
         x = a + b;
+        
+        // Test for loop
+        for (int i = 0; i < 10; i++) {
+            x = x + 1;
+        }
+        
+        // Test while loop
+        while (x > 5) {
+            x = x - 1;
+        }
+        
+        // Test if/else
+        if (x == 5) {
+            y = 3.14;
+        } else {
+            y = 2.71;
+        }
     }
 }
 
 void main() {
-    x = x +- 1;
+    x = x + 1;
+    
+    // Test array access
+    int arr[10];
+    arr[0] = 100;
+    
+    // Test function call
+    foo(1, 2);
 }

@@ -35,6 +35,7 @@ class VarDeclItem:
     """Un item en una declaración de variables: id [= expr]"""
     id_token: Token  # Token del identificador
     initializer: Optional['Expression']  # None si no hay inicializador
+    is_array: bool = False  # True si es un arreglo
 
 
 @dataclass
@@ -82,6 +83,15 @@ class ExprStmt(Statement):
 
     def __repr__(self):
         return f"ExprStmt({self.expression})"
+
+
+@dataclass
+class VarDeclStmt(Statement):
+    """Sentencia de declaración de variable dentro de bloque"""
+    var_decl: 'VarDecl'
+
+    def __repr__(self):
+        return f"VarDeclStmt({self.var_decl})"
 
 
 @dataclass
@@ -166,12 +176,13 @@ class Expression:
 
 @dataclass
 class AssignExpr(Expression):
-    """Expresión de asignación: id = expr"""
-    target_token: Token  # Token del identificador
+    """Expresión de asignación: id = expr O id[expr] = expr"""
+    target: Expression  # Puede ser IdentifierExpr o IndexExpr
     value: Expression
 
     def __repr__(self):
-        return f"AssignExpr({self.target_token.lexeme} = ...)"
+        target_repr = f"{self.target}" if isinstance(self.target, IdentifierExpr) else f"[{self.target}]"
+        return f"AssignExpr({target_repr} = ...)"
 
 
 @dataclass

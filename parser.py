@@ -98,13 +98,13 @@ class Parser:
         
         # Primer item
         init_expr = self.inicializacion()
-        items.append(VarDeclItem(first_id, init_expr))
+        items.append(VarDeclItem(first_id, init_expr, is_array=False))
         
         # Items adicionales
         while self.match(TokenType.COMA):
             id_token = self.consume(TokenType.ID, "Expected identifier after ','")
             init_expr = self.inicializacion()
-            items.append(VarDeclItem(id_token, init_expr))
+            items.append(VarDeclItem(id_token, init_expr, is_array=False))
         
         self.consume(TokenType.PUNTO_COMA, "Expected ';' after variable declaration")
         return VarDecl(type_token, items)
@@ -233,12 +233,60 @@ class Parser:
             self.check(
                 TokenType.LLAVE_IZQ, TokenType.IF, TokenType.WHILE,
                 TokenType.FOR, TokenType.SWITCH, TokenType.RETURN,
-                TokenType.PUNTO_COMA, TokenType.ID
+                TokenType.PUNTO_COMA, TokenType.ID,
+                # Añadir tipos para declaraciones de variables
+                TokenType.INT, TokenType.FLOAT, TokenType.DOUBLE,
+                TokenType.CHAR, TokenType.BOOL, TokenType.VOID
             ) or self.es_inicio_expr()
         )
 
     def sentencia(self) -> Optional[Statement]:
-        if self.check(TokenType.LLAVE_IZQ):
+        # Declaración de variable dentro de sentencia (ej: en bloques)
+        if self.check(TokenType.INT, TokenType.FLOAT, TokenType.DOUBLE,
+                     TokenType.CHAR, TokenType.BOOL):
+            type_token = self.tipo()
+            id_tok = self.consume(TokenType.ID, "Expected identifier after type")
+            
+            items = []
+            
+            # Puede ser un arreglo: int arr[10];
+            if self.match(TokenType.CORCHETE_IZQ):
+                # Es una declaración de arreglo
+                size_expr = self.expr()
+                self.consume(TokenType.CORCHETE_DER, "Expected ']' after array size")
+                items.append(VarDeclItem(id_tok, None, is_array=True))
+                
+                # Mas items si hay comas
+                while self.match(TokenType.COMA):
+                    id_token = self.consume(TokenType.ID, "Expected identifier after ','")
+                    is_arr = False
+                    if self.match(TokenType.CORCHETE_IZQ):
+                        self.expr()
+                        self.consume(TokenType.CORCHETE_DER, "Expected ']'")
+                        is_arr = True
+                    items.append(VarDeclItem(id_token, None, is_array=is_arr))
+                
+                self.consume(TokenType.PUNTO_COMA, "Expected ';' after array declaration")
+            else:
+                # Variable normal
+                init_expr = None
+                if self.match(TokenType.OP_ASIG):
+                    init_expr = self.expr()
+                items.append(VarDeclItem(id_tok, init_expr, is_array=False))
+                
+                while self.match(TokenType.COMA):
+                    id_token = self.consume(TokenType.ID, "Expected identifier")
+                    init_expr = None
+                    if self.match(TokenType.OP_ASIG):
+                        init_expr = self.expr()
+                    items.append(VarDeclItem(id_token, init_expr, is_array=False))
+                
+                self.consume(TokenType.PUNTO_COMA, "Expected ';' after variable declaration")
+            
+            # Retornar como VarDeclStmt
+            return VarDeclStmt(VarDecl(type_token, items))
+        
+        elif self.check(TokenType.LLAVE_IZQ):
             return self.bloque()
         elif self.check(TokenType.IF):
             return self.sentencia_sel()
@@ -287,9 +335,36 @@ class Parser:
         self.consume(TokenType.FOR, "Expected 'for'")
         self.consume(TokenType.PAREN_IZQ, "Expected '(' after 'for'")
         
+        # ForInit puede ser: Expr, DeclVar (sin punto y coma), o vacío
         init = None
         if not self.check(TokenType.PUNTO_COMA):
-            init = self.expr()
+            # Verificar si es una declaración de variable
+            if self.check(TokenType.INT, TokenType.FLOAT, TokenType.DOUBLE,
+                         TokenType.CHAR, TokenType.BOOL):
+                # Es una declaración de variable (sin el PUNTO_COMA final)
+                type_token = self.tipo()
+                id_tok = self.consume(TokenType.ID, "Expected identifier in for init")
+                items = []
+                
+                # Inicializador opcional
+                init_expr = None
+                if self.match(TokenType.OP_ASIG):
+                    init_expr = self.expr()
+                items.append(VarDeclItem(id_tok, init_expr, is_array=False))
+                
+                # Más items si hay comas
+                while self.match(TokenType.COMA):
+                    id_token = self.consume(TokenType.ID, "Expected identifier after ','")
+                    init_expr = None
+                    if self.match(TokenType.OP_ASIG):
+                        init_expr = self.expr()
+                    items.append(VarDeclItem(id_token, init_expr, is_array=False))
+                
+                init = VarDecl(type_token, items)
+            else:
+                # Es una expresión normal
+                init = self.expr()
+        
         self.consume(TokenType.PUNTO_COMA, "Expected ';' after for init")
         
         condition = None
@@ -359,15 +434,23 @@ class Parser:
     def expr(self) -> Expression:
         return self.expr_asign()
 
-    # ExprAsign → ID OP_ASIG ExprAsign | ExprLogica
+    # ExprAsign → ID OP_ASIG ExprAsign | ID[Expr] OP_ASIG ExprAsign | ExprLogica
     def expr_asign(self) -> Expression:
-        if self.check(TokenType.ID) and self.peek_next().type == TokenType.OP_ASIG:
-            id_tok = self.consume(TokenType.ID, "Expected identifier in assignment")
-            op_tok = self.consume(TokenType.OP_ASIG, "Expected '=' in assignment")
-            value = self.expr_asign()
-            return AssignExpr(id_tok, value)
-        else:
-            return self.expr_logica()
+        # Intenta parsear como asignación
+        left = self.expr_logica()
+        
+        # Verifica si es una asignación
+        if self.match(TokenType.OP_ASIG):
+            # left debe ser IdentifierExpr o IndexExpr
+            if isinstance(left, (IdentifierExpr, IndexExpr)):
+                value = self.expr_asign()  # Recursivo para asignación derecha
+                return AssignExpr(left, value)
+            else:
+                raise ParserError(
+                    f"[L{self.current().line}] Invalid assignment target"
+                )
+        
+        return left
 
     # ExprLogica → ExprAnd (OP_OR ExprAnd)*
     def expr_logica(self) -> Expression:
@@ -529,17 +612,4 @@ class Parser:
             TokenType.ID, TokenType.PAREN_IZQ,
             TokenType.OP_NOT, TokenType.OP_RESTA,
             TokenType.OP_INC, TokenType.OP_DEC
-        )
-        tok = self.current()
-        raise ParserError(
-            f"[L{tok.line},C{tok.column}] Invalid expression start: "
-            f"{tok.type} ({tok.lexeme!r})"
-        )
-
-    def es_inicio_expr(self):
-        return self.check(
-            TokenType.NUM_INT, TokenType.NUM_FLOAT,
-            TokenType.STRING, TokenType.CHAR_LITERAL,
-            TokenType.TRUE, TokenType.FALSE,
-            TokenType.ID, TokenType.PAREN_IZQ
         )
